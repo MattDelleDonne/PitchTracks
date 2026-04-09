@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pitch Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;font-size:16px;}
+.app{max-width:960px;margin:0 auto;padding:1rem;}
+.screen{display:none;}.screen.active{display:block;}
+.nav{display:flex;gap:6px;margin-bottom:1.5rem;flex-wrap:wrap;background:#fff;padding:10px;border-radius:10px;border:0.5px solid #ddd;}
+.nav-btn{padding:8px 18px;font-size:13px;border:0.5px solid #ccc;border-radius:8px;background:#fff;color:#333;cursor:pointer;font-family:inherit;}
+.nav-btn.active{background:#185FA5;color:#fff;border-color:#185FA5;}
+.nav-btn:hover:not(.active){background:#f0f0ee;}
+h2{font-size:18px;font-weight:500;margin-bottom:1rem;color:#1a1a1a;}
+.card{background:#fff;border:0.5px solid #ddd;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
+input[type="text"]{padding:8px 12px;border:0.5px solid #ccc;border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;font-family:inherit;}
+select{padding:8px 12px;border:0.5px solid #ccc;border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;font-family:inherit;}
+.btn{padding:8px 16px;border:0.5px solid #ccc;border-radius:8px;font-size:14px;background:#fff;color:#1a1a1a;cursor:pointer;font-family:inherit;}
+.btn:hover{background:#f0f0ee;}
+.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5;}.btn-primary:hover{background:#0C447C;}
+.btn-warning{background:#854F0B;color:#fff;border-color:#854F0B;}.btn-warning:hover{background:#633806;}
+.btn-danger{background:#A32D2D;color:#fff;border-color:#A32D2D;}.btn-danger:hover{background:#791F1F;}
+.btn-green{background:#3B6D11;color:#fff;border-color:#3B6D11;}.btn-green:hover{background:#27500A;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:500;}
+.badge-l{background:#B5D4F4;color:#0C447C;}.badge-r{background:#F5C4B3;color:#712B13;}.badge-s{background:#C0DD97;color:#27500A;}
+.section-label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:0.5rem;}
+.no-data{font-size:13px;color:#aaa;padding:0.5rem 0;}
+.roster-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f5f5f3;border-radius:8px;font-size:13px;margin-bottom:4px;}
+
+.save-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-radius:8px;margin-bottom:1rem;flex-wrap:wrap;border:0.5px solid #ddd;}
+.save-status{font-size:12px;color:#888;flex:1;}
+.save-status.saved{color:#27500A;}
+
+.game-header{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:8px;margin-bottom:1rem;padding-bottom:1rem;border-bottom:0.5px solid #eee;}
+.gh-stat{background:#f5f5f3;border-radius:8px;padding:8px 10px;text-align:center;}
+.gh-label{font-size:11px;color:#888;}
+.gh-val{font-size:18px;font-weight:500;color:#1a1a1a;line-height:1.3;}
+.gh-val.big{font-size:24px;}.gh-val.small{font-size:12px;line-height:1.5;}
+.outs-1{background:#FAEEDA;}.outs-2{background:#F5C4B3;}
+
+.banner{border-radius:8px;padding:12px 16px;font-size:14px;display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.banner-end{background:#EAF3DE;border:0.5px solid #3B6D11;}
+.banner-end .bmsg{color:#173404;font-weight:500;flex:1;}
+.banner-inning{background:#E6F1FB;border:0.5px solid #185FA5;}
+.banner-inning .bmsg{color:#042C53;font-weight:500;flex:1;}
+.banner-pitcher{background:#FAEEDA;border:0.5px solid #854F0B;}
+.banner-pitcher input[type="text"]{font-size:13px;padding:6px 10px;flex:1;min-width:120px;}
+
+.track-layout{display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;}
+.zone-wrap{flex:0 0 auto;}
+.zone-top-labels{display:flex;justify-content:space-between;width:234px;margin-bottom:3px;align-items:center;}
+.ztl{font-size:11px;font-weight:500;padding:2px 8px;border-radius:8px;}
+.ztl-r{background:#F5C4B3;color:#712B13;}.ztl-l{background:#B5D4F4;color:#0C447C;}.ztl-s{background:#C0DD97;color:#27500A;}
+.ztl-away{font-size:10px;color:#aaa;}
+.zone-outer{width:234px;border:2px solid #ccc;border-radius:4px;padding:4px;background:#f5f5f3;}
+.zone-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
+.zone-cell{height:68px;border:1.5px solid #ccc;border-radius:4px;cursor:pointer;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:#aaa;user-select:none;}
+.zone-cell:hover{border-color:#185FA5;background:#E6F1FB;}
+.zone-cell.selected{background:#185FA5 !important;color:#fff !important;border-color:#185FA5 !important;}
+.zone-foot{text-align:center;font-size:10px;color:#aaa;margin-top:3px;}
+
+.bases-and-controls{display:flex;gap:1rem;align-items:flex-start;margin-top:10px;flex-wrap:wrap;}
+.bases-wrap{flex:0 0 auto;}
+.bases-label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:6px;}
+.diamond{position:relative;width:90px;height:90px;}
+.base{width:22px;height:22px;border:2px solid #ccc;transform:rotate(45deg);cursor:pointer;position:absolute;background:#fff;}
+.base.on{background:#EF9F27;border-color:#854F0B;}
+.base-second{top:4px;left:34px;}.base-third{top:34px;left:4px;}.base-first{top:34px;left:64px;}
+.side-controls{flex:1;display:flex;flex-direction:column;gap:6px;}
+
+.entry-side{flex:1;min-width:230px;}
+.step-label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#888;margin-bottom:7px;}
+.pitch-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.25rem;}
+.pitch-btn{padding:11px 14px;border:1.5px solid #ccc;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;}
+.pitch-btn:hover{border-color:#185FA5;color:#185FA5;}
+.pitch-btn.sel{background:#185FA5;color:#fff;border-color:#185FA5;}
+.result-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.rbtn{padding:12px 18px;border:1.5px solid #ccc;border-radius:8px;font-size:14px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;}
+.rbtn-ball:hover{background:#E6F1FB;border-color:#185FA5;color:#0C447C;}
+.rbtn-strike:hover{background:#FCEBEB;border-color:#A32D2D;color:#791F1F;}
+.rbtn-foul:hover{background:#FAEEDA;border-color:#854F0B;color:#633806;}
+.rbtn-inplay:hover{background:#EAF3DE;border-color:#3B6D11;color:#27500A;}
+.inplay-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.ipbtn{padding:10px 14px;border:1.5px solid #ccc;border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;}
+.ipbtn:hover{background:#EAF3DE;border-color:#3B6D11;color:#27500A;}
+.ipbtn.dp{background:#FAEEDA;border-color:#854F0B;color:#633806;}
+.ipbtn.dp:hover{background:#F5C4B3;}
+.disabled{opacity:0.32;pointer-events:none;}
+
+.pitch-log{max-height:130px;overflow-y:auto;margin-top:4px;}
+.pitch-row{display:flex;gap:8px;font-size:12px;padding:5px 0;border-bottom:0.5px solid #eee;align-items:center;}
+.pitch-row:last-child{border-bottom:none;}
+.pr-n{color:#aaa;min-width:18px;font-size:11px;}
+.pr-count{color:#888;min-width:28px;font-weight:500;}
+.pr-type{font-weight:500;min-width:38px;}.pr-zone{color:#888;min-width:24px;}.pr-result{flex:1;}
+
+.report-toggle{display:flex;border:0.5px solid #ccc;border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:1.25rem;}
+.rt-btn{padding:8px 22px;font-size:13px;cursor:pointer;background:#fff;color:#888;border:none;font-family:inherit;}
+.rt-btn.active{background:#185FA5;color:#fff;}
+.pitcher-tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap;}
+
+.export-bar{display:flex;gap:8px;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;padding:10px 14px;background:#f5f5f3;border-radius:8px;}
+.export-label{font-size:12px;color:#888;flex:1;}
+
+.legend{display:flex;gap:10px;align-items:center;margin-bottom:1rem;flex-wrap:wrap;padding:8px 12px;background:#f5f5f3;border-radius:8px;}
+.legend-label{font-size:11px;color:#888;}
+.heat-bar{display:flex;align-items:center;gap:4px;}
+.heat-swatch{width:16px;height:16px;border-radius:3px;}
+.heat-bar-label{font-size:11px;color:#888;}
+.pill-legend{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#888;}
+.legend-dot{width:9px;height:9px;border-radius:50%;}
+
+.pitch-mix-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem;padding:10px 14px;background:#f5f5f3;border-radius:8px;}
+.mix-pill{font-size:13px;font-weight:500;padding:4px 10px;border-radius:20px;}
+.overall-summary{margin-bottom:1.5rem;padding:12px 16px;background:#f5f5f3;border-radius:12px;border-left:3px solid #185FA5;}
+.summary-title{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:8px;}
+.summary-bullet{font-size:14px;color:#1a1a1a;margin-bottom:5px;padding-left:4px;}
+
+.count-section{margin-bottom:1.5rem;}
+.count-header{font-size:13px;font-weight:500;color:#888;margin-bottom:0.5rem;padding-bottom:4px;border-bottom:0.5px solid #eee;}
+.tend-pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.tend-pill{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;}
+.hm-wrap{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:4px;}
+.hm-block{}.hm-title{font-size:12px;font-weight:500;color:#1a1a1a;margin-bottom:3px;}
+.hm-grid{display:grid;grid-template-columns:repeat(3,30px);gap:2px;}
+.hm-cell{width:30px;height:30px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;}
+.scout-card{background:#f5f5f3;border-radius:12px;padding:1rem;margin-bottom:0.75rem;}
+.scout-count{font-size:20px;font-weight:500;color:#1a1a1a;margin-bottom:6px;}
+.scout-line{font-size:15px;color:#1a1a1a;margin-bottom:4px;padding-left:10px;border-left:3px solid #185FA5;border-radius:0;}
+.scout-insight{font-size:13px;color:#633806;margin-bottom:3px;padding-left:10px;border-left:3px solid #854F0B;border-radius:0;margin-top:4px;}
+.scout-note{font-size:12px;color:#aaa;margin-top:5px;}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="nav">
+  <button class="nav-btn active" id="nav-roster">Roster</button>
+  <button class="nav-btn" id="nav-pregame">Game setup</button>
+  <button class="nav-btn" id="nav-track">Track pitches</button>
+  <button class="nav-btn" id="nav-report">Report</button>
+</div>
+
+<div id="s-roster" class="screen active">
+  <h2>My roster</h2>
+  <div class="card">
+    <div style="display:flex;gap:8px;margin-bottom:1rem;">
+      <input type="text" id="rName" placeholder="Player name or number" style="flex:1;" />
+      <select id="rHand"><option value="R">R</option><option value="L">L</option><option value="S">S</option></select>
+      <button class="btn btn-primary" id="addPlayerBtn">Add</button>
+    </div>
+    <div class="section-label">Saved players</div>
+    <div id="rosterList"></div>
+  </div>
+</div>
+
+<div id="s-pregame" class="screen">
+  <h2>Game setup</h2>
+  <div class="card">
+    <div class="section-label" style="margin-bottom:6px;">Opposing starting pitcher</div>
+    <div style="display:flex;gap:8px;margin-bottom:1.5rem;">
+      <input type="text" id="pitcherInput" placeholder="Pitcher name or number" style="flex:1;" />
+    </div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+      <div style="flex:1;min-width:180px;">
+        <div class="section-label">Available players</div>
+        <div id="availList"></div>
+      </div>
+      <div style="flex:1;min-width:180px;">
+        <div class="section-label">Lineup order</div>
+        <div id="lineupList"></div>
+        <button class="btn btn-sm" id="clearLineupBtn" style="margin-top:6px;">Clear</button>
+      </div>
+    </div>
+    <div style="margin-top:1.25rem;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" id="startGameBtn">Start game</button>
+      <button class="btn btn-danger" id="newGameBtn">New game (clear saved)</button>
+    </div>
+  </div>
+  <div id="savedGameBanner" style="display:none;" class="card">
+    <div class="section-label">Saved game found</div>
+    <div id="savedGameInfo" style="font-size:13px;color:#888;margin-bottom:8px;"></div>
+    <button class="btn btn-primary btn-sm" id="resumeGameBtn">Resume game</button>
+  </div>
+</div>
+
+<div id="s-track" class="screen">
+  <div class="save-bar">
+    <span class="save-status" id="saveStatus">Game in progress</span>
+    <button class="btn btn-sm btn-danger" id="newGameTrackBtn">New game</button>
+  </div>
+  <div class="game-header" id="gameHeader"></div>
+  <div id="bannerEnd" class="banner banner-end" style="display:none;">
+    <span class="bmsg" id="bannerMsg"></span>
+    <button class="btn btn-sm btn-primary" id="nextBatterBtn">Next batter</button>
+    <button class="btn btn-sm btn-warning" id="newPitcherBannerBtn">New pitcher</button>
+  </div>
+  <div id="bannerInning" class="banner banner-inning" style="display:none;">
+    <span class="bmsg" id="bannerInningMsg"></span>
+    <button class="btn btn-sm btn-primary" id="newInningBtn">Next inning</button>
+    <button class="btn btn-sm btn-warning" id="newPitcherInningBtn">New pitcher + next inning</button>
+  </div>
+  <div id="bannerPitcher" class="banner banner-pitcher" style="display:none;gap:8px;">
+    <input type="text" id="newPitcherName" placeholder="New pitcher name" />
+    <button class="btn btn-sm btn-warning" id="confirmPitcherBtn">Confirm</button>
+    <button class="btn btn-sm" id="cancelPitcherBtn">Cancel</button>
+  </div>
+  <div class="track-layout">
+    <div class="zone-wrap">
+      <div class="zone-top-labels" id="zoneTopLabels"></div>
+      <div class="zone-outer"><div class="zone-grid" id="zoneGrid"></div></div>
+      <div class="zone-foot">Catcher's view</div>
+      <div class="bases-and-controls">
+        <div class="bases-wrap">
+          <div class="bases-label">Runners on base</div>
+          <div class="diamond">
+            <div class="base base-second" id="base2"></div>
+            <div class="base base-third" id="base3"></div>
+            <div class="base base-first" id="base1"></div>
+          </div>
+          <div style="font-size:10px;color:#aaa;margin-top:4px;">Tap to toggle</div>
+        </div>
+        <div class="side-controls">
+          <button class="btn btn-sm btn-warning" id="newPitcherSideBtn">New pitcher</button>
+          <button class="btn btn-sm btn-danger" id="caughtStealingBtn">Caught stealing</button>
+          <button class="btn btn-sm" id="clearBasesBtn">Clear bases</button>
+          <button class="btn btn-sm" id="undoBtn">Undo last pitch</button>
+        </div>
+      </div>
+    </div>
+    <div class="entry-side">
+      <div id="pitchSection" class="disabled">
+        <div class="step-label">Pitch type</div>
+        <div class="pitch-btns" id="pitchBtns"></div>
+      </div>
+      <div id="resultSection" class="disabled">
+        <div class="step-label">Result</div>
+        <div class="result-btns" id="resultBtns"></div>
+        <div id="inplayBtns" style="display:none;" class="inplay-btns"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem;">
+    <div class="section-label">At-bat pitch log</div>
+    <div class="pitch-log" id="pitchLog"></div>
+  </div>
+</div>
+
+<div id="s-report" class="screen">
+  <h2>Scouting report</h2>
+  <div class="export-bar">
+    <span class="export-label">Export full pitch log as CSV for analysis in Excel or Python</span>
+    <button class="btn btn-sm btn-green" id="exportAllBtn">Download all pitchers CSV</button>
+    <button class="btn btn-sm btn-green" id="exportCurrentBtn">Download current pitcher CSV</button>
+  </div>
+  <div class="report-toggle">
+    <button class="rt-btn active" id="rtA">Analyst</button>
+    <button class="rt-btn" id="rtP">Player view</button>
+  </div>
+  <div class="pitcher-tabs" id="pitcherTabs"></div>
+  <div class="legend">
+    <span class="legend-label">Pill frequency:</span>
+    <div class="pill-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#185FA5;"></span>50%+ primary</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#854F0B;"></span>30-49%</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#888;"></span>under 30%</span>
+    </div>
+    <span class="legend-label" style="margin-left:8px;">Zone heat:</span>
+    <div class="heat-bar">
+      <span class="heat-bar-label">cold</span>
+      <span class="heat-swatch" style="background:#EAF3FB;border:1px solid #ccc;"></span>
+      <span class="heat-swatch" style="background:#F0C4A0;border:1px solid #ccc;"></span>
+      <span class="heat-swatch" style="background:#E2724A;border:1px solid #ccc;"></span>
+      <span class="heat-swatch" style="background:#C0392B;border:1px solid #ccc;"></span>
+      <span class="heat-bar-label">hot</span>
+    </div>
+  </div>
+  <div id="analystView"></div>
+  <div id="playerView" style="display:none;"></div>
+</div>
+</div>
+
+<script>
+const PITCHES=['FB','CB','CH','SL','SNK','CUT','SPLIT'];
+const PRIORITY_COUNTS=['0-0','1-0','0-1','1-1','2-0','0-2','2-1','1-2','3-0','3-1','2-2','3-2'];
+const ZONE_PLAIN=['inside-high','middle-high','outside-high','inside-middle','middle','outside-middle','inside-low','middle-low','outside-low'];
+const ZONE_ROW=['high','high','high','middle','middle','middle','low','low','low'];
+const ZONE_COL=['inside','middle','outside','inside','middle','outside','inside','middle','outside'];
+const MIX_COLORS=['#185FA5','#854F0B','#3B6D11','#A32D2D','#534AB7','#0F6E56','#633806'];
+const ROSTER_KEY='bbRoster11';
+const GAME_KEY='bbGame11';
+
+let roster=JSON.parse(localStorage.getItem(ROSTER_KEY)||'[]');
+let lineup=[];
+let game={pitchers:[],curP:0,curB:0,inning:1,outs:0,atBats:[],currentABIdx:-1};
+let bases={first:false,second:false,third:false};
+let entry={zone:null,pitch:null};
+let atBatOver=false;
+let inningOver=false;
+let reportView='analyst';
+let reportP=0;
+let saveTimer=null;
+
+function saveRoster(){localStorage.setItem(ROSTER_KEY,JSON.stringify(roster));}
+function saveGame(){
+  const state={game,bases,atBatOver,inningOver,lineup,savedAt:Date.now()};
+  localStorage.setItem(GAME_KEY,JSON.stringify(state));
+  const el=document.getElementById('saveStatus');
+  if(el){el.textContent='Saved '+new Date().toLocaleTimeString();el.className='save-status saved';}
+}
+function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveGame,400);}
+function loadSavedGame(){try{const r=localStorage.getItem(GAME_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function clearSavedGame(){localStorage.removeItem(GAME_KEY);}
+
+function exportCSV(pitcherIdxFilter){
+  const rows=[['pitch_num','inning','pitcher','batter','batter_hand','count','balls','strikes','pitch_type','zone','zone_row','zone_col','result','inplay_result']];
+  let pitchNum=0;
+  for(const ab of game.atBats){
+    if(pitcherIdxFilter!==null&&ab.pIdx!==pitcherIdxFilter)continue;
+    const pitcherName=game.pitchers[ab.pIdx]||'Unknown';
+    const batter=lineup[ab.bIdx]||{name:'Batter '+(ab.bIdx+1),hand:'R'};
+    for(const p of ab.pitches){
+      pitchNum++;
+      const bs=p.count.split('-');
+      rows.push([pitchNum,ab.inning,'"'+pitcherName+'"','"'+batter.name+'"',batter.hand,p.count,bs[0]||0,bs[1]||0,p.pitchType,p.zone!==null?p.zone+1:'',p.zone!==null?ZONE_ROW[p.zone]:'',p.zone!==null?ZONE_COL[p.zone]:'',p.result,p.inplay||'']);
+    }
+  }
+  if(rows.length<=1){alert('No pitches to export yet.');return;}
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const pName=pitcherIdxFilter!==null?(game.pitchers[pitcherIdxFilter]||'pitcher').replace(/\s+/g,'_'):'all_pitchers';
+  a.href=url;a.download='pitch_log_'+pName+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+function heatColor(intensity){
+  if(intensity<=0)return{bg:'#EAF3FB',tc:'#5F5E5A'};
+  const stops=[{r:234,g:243,b:251},{r:240,g:196,b:160},{r:226,g:114,b:74},{r:192,g:57,b:43}];
+  const scaled=intensity*(stops.length-1);const lo=Math.floor(scaled);const hi=Math.min(lo+1,stops.length-1);const t=scaled-lo;
+  const a=stops[lo],b2=stops[hi];
+  const r=Math.round(a.r+(b2.r-a.r)*t);const g=Math.round(a.g+(b2.g-a.g)*t);const bv=Math.round(a.b+(b2.b-a.b)*t);
+  return{bg:'rgb('+r+','+g+','+bv+')',tc:((r*299+g*587+bv*114)/1000)>140?'#2C2C2A':'#fff'};
+}
+function zoneHeatCell(count,maxZ){const{bg,tc}=heatColor(maxZ>0?count/maxZ:0);return'<div class="hm-cell" style="background:'+bg+';color:'+tc+';">'+(count>0?count:'')+'</div>';}
+
+function curAB(){return game.currentABIdx>=0?game.atBats[game.currentABIdx]:null;}
+function getBS(){const ab=curAB();return ab?{b:ab.balls,s:ab.strikes}:{b:0,s:0};}
+function getABPitches(){const ab=curAB();return ab?ab.pitches:[];}
+function newAB(){const ab={pIdx:game.curP,bIdx:game.curB,inning:game.inning,pitches:[],balls:0,strikes:0};game.atBats.push(ab);game.currentABIdx=game.atBats.length-1;}
+
+function logPitch(pitchType,zone,result,inplay){
+  const ab=curAB();if(!ab)return;
+  const countBefore=ab.balls+'-'+ab.strikes;
+  ab.pitches.push({pitchType,zone,result,inplay:inplay||null,count:countBefore});
+  if(result==='Ball')ab.balls=Math.min(ab.balls+1,4);
+  else if(result==='Strike')ab.strikes=Math.min(ab.strikes+1,3);
+  else if(result==='Foul'&&ab.strikes<2)ab.strikes++;
+}
+
+function undoLastPitch(){
+  const ab=curAB();if(!ab||!ab.pitches.length)return;
+  if(atBatOver){atBatOver=false;inningOver=false;document.getElementById('bannerEnd').style.display='none';document.getElementById('bannerInning').style.display='none';}
+  ab.pitches.pop();ab.balls=0;ab.strikes=0;
+  for(const p of ab.pitches){
+    if(p.result==='Ball')ab.balls=Math.min(ab.balls+1,4);
+    else if(p.result==='Strike')ab.strikes=Math.min(ab.strikes+1,3);
+    else if(p.result==='Foul'&&ab.strikes<2)ab.strikes++;
+  }
+  entry={zone:null,pitch:null};scheduleSave();renderTrack();
+}
+
+function allPitchesForPitcher(pIdx){const out=[];for(const ab of game.atBats){if(ab.pIdx===pIdx)ab.pitches.forEach(p=>out.push(Object.assign({},p)));}return out;}
+function totalPitchesForPitcher(pIdx){return allPitchesForPitcher(pIdx).length;}
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  if(id==='roster')renderRoster();
+  if(id==='pregame'){renderPregame();checkSavedGame();}
+  if(id==='track')renderTrack();
+  if(id==='report')renderReport();
+}
+
+function checkSavedGame(){
+  const saved=loadSavedGame();
+  const banner=document.getElementById('savedGameBanner');
+  if(saved&&saved.game&&saved.game.pitchers&&saved.game.pitchers.length){
+    const total=saved.game.atBats.reduce((s,ab)=>s+ab.pitches.length,0);
+    document.getElementById('savedGameInfo').textContent='Pitcher(s): '+saved.game.pitchers.join(', ')+' | Inning: '+saved.game.inning+' | Pitches: '+total+' | Saved: '+new Date(saved.savedAt).toLocaleTimeString();
+    banner.style.display='block';
+  } else {banner.style.display='none';}
+}
+
+document.getElementById('nav-roster').addEventListener('click',()=>go('roster'));
+document.getElementById('nav-pregame').addEventListener('click',()=>go('pregame'));
+document.getElementById('nav-track').addEventListener('click',()=>go('track'));
+document.getElementById('nav-report').addEventListener('click',()=>go('report'));
+document.getElementById('addPlayerBtn').addEventListener('click',addPlayer);
+document.getElementById('clearLineupBtn').addEventListener('click',()=>{lineup=[];renderPregame();});
+document.getElementById('startGameBtn').addEventListener('click',startGame);
+document.getElementById('newGameBtn').addEventListener('click',newGame);
+document.getElementById('newGameTrackBtn').addEventListener('click',newGame);
+document.getElementById('resumeGameBtn').addEventListener('click',resumeGame);
+document.getElementById('nextBatterBtn').addEventListener('click',advanceBatter);
+document.getElementById('newPitcherBannerBtn').addEventListener('click',showPitcherChange);
+document.getElementById('newPitcherSideBtn').addEventListener('click',showPitcherChange);
+document.getElementById('confirmPitcherBtn').addEventListener('click',confirmPitcherChange);
+document.getElementById('cancelPitcherBtn').addEventListener('click',cancelPitcherChange);
+document.getElementById('newInningBtn').addEventListener('click',startNewInning);
+document.getElementById('newPitcherInningBtn').addEventListener('click',()=>{startNewInning();showPitcherChange();});
+document.getElementById('clearBasesBtn').addEventListener('click',()=>{bases={first:false,second:false,third:false};renderBases();scheduleSave();});
+document.getElementById('undoBtn').addEventListener('click',undoLastPitch);
+document.getElementById('caughtStealingBtn').addEventListener('click',caughtStealing);
+document.getElementById('rtA').addEventListener('click',()=>setView('analyst'));
+document.getElementById('rtP').addEventListener('click',()=>setView('player'));
+document.getElementById('exportAllBtn').addEventListener('click',()=>exportCSV(null));
+document.getElementById('exportCurrentBtn').addEventListener('click',()=>exportCSV(reportP));
+['base1','base2','base3'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',()=>{
+    const key=id==='base1'?'first':id==='base2'?'second':'third';
+    bases[key]=!bases[key];renderBases();scheduleSave();
+  });
+});
+
+function newGame(){
+  if(!confirm('Start a new game? This will clear the current saved game.'))return;
+  clearSavedGame();
+  game={pitchers:[],curP:0,curB:0,inning:1,outs:0,atBats:[],currentABIdx:-1};
+  bases={first:false,second:false,third:false};
+  lineup=[];entry={zone:null,pitch:null};atBatOver=false;inningOver=false;
+  go('pregame');
+}
+function resumeGame(){
+  const saved=loadSavedGame();if(!saved)return;
+  game=saved.game;bases=saved.bases;atBatOver=saved.atBatOver;inningOver=saved.inningOver;
+  lineup=saved.lineup||[];entry={zone:null,pitch:null};go('track');
+}
+function addPlayer(){
+  const n=document.getElementById('rName').value.trim();const h=document.getElementById('rHand').value;
+  if(!n)return;roster.push({name:n,hand:h});saveRoster();document.getElementById('rName').value='';renderRoster();
+}
+function removePlayer(i){roster.splice(i,1);saveRoster();renderRoster();}
+function renderRoster(){
+  const el=document.getElementById('rosterList');
+  if(!roster.length){el.innerHTML='<div class="no-data">No players yet</div>';return;}
+  el.innerHTML=roster.map((p,i)=>'<div class="roster-item"><span style="flex:1">'+p.name+'</span><span class="badge badge-'+p.hand.toLowerCase()+'">'+p.hand+'</span><button class="btn btn-sm" data-ri="'+i+'">Remove</button></div>').join('');
+  el.querySelectorAll('[data-ri]').forEach(btn=>btn.addEventListener('click',()=>removePlayer(+btn.dataset.ri)));
+}
+function addToLineup(name){const p=roster.find(r=>r.name===name);if(p&&!lineup.find(l=>l.name===name)){lineup.push(p);renderPregame();}}
+function removeFromLineup(i){lineup.splice(i,1);renderPregame();}
+function renderPregame(){
+  const avail=roster.filter(p=>!lineup.find(l=>l.name===p.name));
+  const aEl=document.getElementById('availList');
+  aEl.innerHTML=avail.length?avail.map(p=>'<div class="roster-item" style="cursor:pointer;" data-aname="'+p.name+'"><span style="flex:1">'+p.name+'</span><span class="badge badge-'+p.hand.toLowerCase()+'">'+p.hand+'</span></div>').join(''):'<div class="no-data">All in lineup</div>';
+  aEl.querySelectorAll('[data-aname]').forEach(el=>el.addEventListener('click',()=>addToLineup(el.dataset.aname)));
+  const lEl=document.getElementById('lineupList');
+  lEl.innerHTML=lineup.length?lineup.map((p,i)=>'<div class="roster-item"><span style="color:#888;min-width:20px;font-size:12px;">'+(i+1)+'.</span><span style="flex:1">'+p.name+'</span><span class="badge badge-'+p.hand.toLowerCase()+'">'+p.hand+'</span><button class="btn btn-sm" data-li="'+i+'">x</button></div>').join(''):'<div class="no-data">Click players to add</div>';
+  lEl.querySelectorAll('[data-li]').forEach(btn=>btn.addEventListener('click',()=>removeFromLineup(+btn.dataset.li)));
+}
+function startGame(){
+  const pn=document.getElementById('pitcherInput').value.trim();
+  if(!pn){alert('Enter a pitcher name');return;}
+  game={pitchers:[pn],curP:0,curB:0,inning:1,outs:0,atBats:[],currentABIdx:-1};
+  bases={first:false,second:false,third:false};entry={zone:null,pitch:null};atBatOver=false;inningOver=false;
+  newAB();scheduleSave();go('track');
+}
+function curPitcher(){return game.pitchers[game.curP]||'?';}
+function curBatter(){return lineup[game.curB]||{name:'Batter '+(game.curB+1),hand:'R'};}
+function dpEligible(){return bases.first;}
+function renderBases(){
+  document.getElementById('base1').classList.toggle('on',bases.first);
+  document.getElementById('base2').classList.toggle('on',bases.second);
+  document.getElementById('base3').classList.toggle('on',bases.third);
+}
+function caughtStealing(){
+  if(inningOver)return;game.outs++;
+  if(bases.third)bases.third=false;else if(bases.second)bases.second=false;else if(bases.first)bases.first=false;
+  if(game.outs>=3){inningOver=true;atBatOver=true;bases={first:false,second:false,third:false};document.getElementById('bannerInningMsg').textContent='Inning '+game.inning+' over. 3 outs recorded.';document.getElementById('bannerInning').style.display='flex';document.getElementById('bannerEnd').style.display='none';}
+  renderBases();scheduleSave();renderTrack();
+}
+function renderTrack(){
+  const batter=curBatter();const bs=getBS();const totalP=totalPitchesForPitcher(game.curP);
+  const outsClass=game.outs===0?'':game.outs===1?' outs-1':' outs-2';
+  document.getElementById('gameHeader').innerHTML=
+    '<div class="gh-stat"><div class="gh-label">Inning</div><div class="gh-val big">'+game.inning+'</div></div>'+
+    '<div class="gh-stat'+outsClass+'"><div class="gh-label">Outs</div><div class="gh-val big">'+game.outs+'</div></div>'+
+    '<div class="gh-stat"><div class="gh-label">Count</div><div class="gh-val big">'+bs.b+'-'+bs.s+'</div></div>'+
+    '<div class="gh-stat"><div class="gh-label">Pitcher</div><div class="gh-val small">'+curPitcher()+'</div></div>'+
+    '<div class="gh-stat"><div class="gh-label">Batter</div><div class="gh-val small">'+batter.name+'</div></div>'+
+    '<div class="gh-stat"><div class="gh-label">AB pitches</div><div class="gh-val">'+getABPitches().length+'</div></div>'+
+    '<div class="gh-stat"><div class="gh-label">Pitcher total</div><div class="gh-val">'+totalP+'</div></div>';
+  renderZoneLabels();renderZone();renderPitchBtns();renderResultBtns();renderLog();renderBases();updateSteps();
+  document.getElementById('bannerEnd').style.display=(atBatOver&&!inningOver)?'flex':'none';
+  document.getElementById('bannerInning').style.display=inningOver?'flex':'none';
+  if(!atBatOver&&!inningOver)document.getElementById('bannerPitcher').style.display='none';
+}
+function renderZoneLabels(){
+  const hand=curBatter().hand||'R';
+  let left,right;
+  if(hand==='R'){left='<span class="ztl ztl-r">RHB</span>';right='<span class="ztl-away">away</span>';}
+  else if(hand==='L'){left='<span class="ztl-away">away</span>';right='<span class="ztl ztl-l">LHB</span>';}
+  else{left='<span class="ztl ztl-s">SHB</span>';right='<span class="ztl ztl-s">SHB</span>';}
+  document.getElementById('zoneTopLabels').innerHTML=left+right;
+}
+function getD2D(hand){return hand==='L'?[2,1,0,5,4,3,8,7,6]:[0,1,2,3,4,5,6,7,8];}
+function renderZone(){
+  const hand=curBatter().hand||'R';const d2d=getD2D(hand);
+  const abP=getABPitches();const zc=Array(9).fill(0);
+  abP.forEach(p=>{if(p.zone!==null&&p.zone!==undefined)zc[p.zone]++;});
+  const maxZ=Math.max(...zc,1);let html='';
+  for(let di=0;di<9;di++){
+    const dataIdx=d2d[di];const count=zc[dataIdx];
+    const{bg,tc}=heatColor(count>0?count/maxZ:0);
+    const sel=entry.zone===dataIdx?'selected':'';
+    const style=sel?'':'background:'+bg+';color:'+tc+';';
+    html+='<div class="zone-cell '+sel+'" style="'+style+'" data-didx="'+dataIdx+'">'+(count>0?count:'')+'</div>';
+  }
+  document.getElementById('zoneGrid').innerHTML=html;
+  document.querySelectorAll('.zone-cell').forEach(cell=>{
+    cell.addEventListener('click',()=>{if(atBatOver||inningOver)return;entry.zone=parseInt(cell.dataset.didx);renderZone();updateSteps();});
+  });
+}
+function renderPitchBtns(){
+  const el=document.getElementById('pitchBtns');
+  el.innerHTML=PITCHES.map(pt=>'<button class="pitch-btn '+(entry.pitch===pt?'sel':'')+'" data-pt="'+pt+'">'+pt+'</button>').join('');
+  el.querySelectorAll('[data-pt]').forEach(btn=>{btn.addEventListener('click',()=>{if(atBatOver||inningOver)return;entry.pitch=btn.dataset.pt;renderPitchBtns();updateSteps();});});
+}
+function renderResultBtns(){
+  const bs=getBS();const el=document.getElementById('resultBtns');
+  el.innerHTML='<button class="rbtn rbtn-ball" id="rBall">Ball</button><button class="rbtn rbtn-strike" id="rStrike">'+(bs.s>=2?'Strike (K)':'Strike')+'</button><button class="rbtn rbtn-foul" id="rFoul">Foul</button><button class="rbtn rbtn-inplay" id="rInplay">In Play</button>';
+  document.getElementById('inplayBtns').style.display='none';
+  document.getElementById('rBall').addEventListener('click',()=>doResult('Ball',null));
+  document.getElementById('rStrike').addEventListener('click',()=>doResult('Strike',null));
+  document.getElementById('rFoul').addEventListener('click',()=>doResult('Foul',null));
+  document.getElementById('rInplay').addEventListener('click',showInplay);
+}
+function showInplay(){
+  const ib=document.getElementById('inplayBtns');ib.style.display='flex';
+  let html=['Out','Single','Double','Triple','HR'].map(r=>'<button class="ipbtn" data-ip="'+r+'">'+r+'</button>').join('');
+  if(dpEligible())html+='<button class="ipbtn dp" data-ip="Double Play">Double Play</button>';
+  ib.innerHTML=html;
+  ib.querySelectorAll('[data-ip]').forEach(btn=>btn.addEventListener('click',()=>doResult('In Play',btn.dataset.ip)));
+}
+function updateSteps(){
+  document.getElementById('pitchSection').classList.toggle('disabled',entry.zone===null);
+  document.getElementById('resultSection').classList.toggle('disabled',entry.zone===null||entry.pitch===null);
+}
+function doResult(result,inplay){
+  if(entry.zone===null||entry.pitch===null)return;if(atBatOver||inningOver)return;
+  logPitch(entry.pitch,entry.zone,result,inplay);entry={zone:null,pitch:null};
+  const bs=getBS();let msg='';let outsToAdd=0;
+  if(result==='In Play'){
+    msg='In play: '+inplay+'.';
+    if(inplay==='Out')outsToAdd=1;
+    else if(inplay==='Double Play'){outsToAdd=2;bases.first=false;}
+    else if(inplay==='Single'){if(bases.third)bases.third=false;if(bases.second){bases.third=true;bases.second=false;}bases.first=true;}
+    else if(inplay==='Double'){if(bases.third)bases.third=false;if(bases.second)bases.third=true;bases.second=true;bases.first=false;}
+    else if(inplay==='Triple'){bases={first:false,second:false,third:true};}
+    else if(inplay==='HR'){bases={first:false,second:false,third:false};}
+    msg+=' At-bat over.';atBatOver=true;
+  } else if(bs.b>=4){
+    msg='Walk. At-bat over.';
+    if(bases.first&&bases.second)bases.third=true;else if(bases.first)bases.second=true;else bases.first=true;
+    atBatOver=true;
+  } else if(bs.s>=3){msg='Strikeout. At-bat over.';outsToAdd=1;atBatOver=true;}
+  if(outsToAdd>0){game.outs+=outsToAdd;if(game.outs>=3){inningOver=true;bases={first:false,second:false,third:false};document.getElementById('bannerInningMsg').textContent='Inning '+game.inning+' over. 3 outs recorded.';}}
+  if(atBatOver&&!inningOver)document.getElementById('bannerMsg').textContent=msg;
+  scheduleSave();
+  renderZone();renderPitchBtns();renderResultBtns();renderLog();renderBases();updateSteps();
+  const bigs=document.querySelectorAll('.gh-val.big');
+  if(bigs[1])bigs[1].textContent=game.outs;if(bigs[2])bigs[2].textContent=bs.b+'-'+bs.s;
+  const abEl=document.querySelectorAll('.gh-val')[5];if(abEl)abEl.textContent=getABPitches().length;
+  const totEl=document.querySelectorAll('.gh-val')[6];if(totEl)totEl.textContent=totalPitchesForPitcher(game.curP);
+  document.getElementById('bannerEnd').style.display=(atBatOver&&!inningOver)?'flex':'none';
+  document.getElementById('bannerInning').style.display=inningOver?'flex':'none';
+}
+function advanceBatter(){
+  atBatOver=false;entry={zone:null,pitch:null};game.curB=(game.curB+1)%(lineup.length||99);
+  document.getElementById('bannerEnd').style.display='none';document.getElementById('bannerPitcher').style.display='none';
+  newAB();scheduleSave();renderTrack();
+}
+function startNewInning(){
+  game.inning++;game.outs=0;game.curB=(game.curB+1)%(lineup.length||99);
+  atBatOver=false;inningOver=false;entry={zone:null,pitch:null};bases={first:false,second:false,third:false};
+  document.getElementById('bannerInning').style.display='none';document.getElementById('bannerEnd').style.display='none';document.getElementById('bannerPitcher').style.display='none';
+  newAB();scheduleSave();renderTrack();
+}
+function showPitcherChange(){document.getElementById('bannerPitcher').style.display='flex';document.getElementById('newPitcherName').value='';setTimeout(()=>document.getElementById('newPitcherName').focus(),50);}
+function cancelPitcherChange(){document.getElementById('bannerPitcher').style.display='none';}
+function confirmPitcherChange(){
+  const n=document.getElementById('newPitcherName').value.trim();if(!n)return;
+  game.pitchers.push(n);game.curP++;atBatOver=false;inningOver=false;entry={zone:null,pitch:null};
+  document.getElementById('bannerEnd').style.display='none';document.getElementById('bannerInning').style.display='none';document.getElementById('bannerPitcher').style.display='none';
+  newAB();scheduleSave();renderTrack();
+}
+function renderLog(){
+  const ab=getABPitches();const el=document.getElementById('pitchLog');
+  if(!ab.length){el.innerHTML='<div class="no-data">No pitches this at-bat</div>';return;}
+  el.innerHTML=[...ab].reverse().map((p,i)=>'<div class="pitch-row"><span class="pr-n">'+(ab.length-i)+'</span><span class="pr-count">'+p.count+'</span><span class="pr-type">'+p.pitchType+'</span><span class="pr-zone">Z'+(p.zone+1)+'</span><span class="pr-result">'+p.result+(p.inplay?' ('+p.inplay+')':'')+'</span></div>').join('');
+}
+function setView(v){
+  reportView=v;
+  document.getElementById('analystView').style.display=v==='analyst'?'block':'none';
+  document.getElementById('playerView').style.display=v==='player'?'block':'none';
+  document.getElementById('rtA').classList.toggle('active',v==='analyst');
+  document.getElementById('rtP').classList.toggle('active',v==='player');
+}
+function setReportP(i){reportP=i;renderReport();}
+function renderReport(){
+  const tabs=document.getElementById('pitcherTabs');
+  if(!game.pitchers.length){document.getElementById('analystView').innerHTML='<div class="no-data">No game data yet.</div>';document.getElementById('playerView').innerHTML='';tabs.innerHTML='';return;}
+  tabs.innerHTML=game.pitchers.map((p,i)=>'<button class="btn btn-sm '+(reportP===i?'btn-primary':'')+'" data-rpi="'+i+'">'+p+'</button>').join('');
+  tabs.querySelectorAll('[data-rpi]').forEach(btn=>btn.addEventListener('click',()=>setReportP(+btn.dataset.rpi)));
+  buildAnalyst();buildPlayer();setView(reportView);
+}
+function getCountMap(pitches){const m={};for(const p of pitches){if(!m[p.count])m[p.count]=[];m[p.count].push(p);}return m;}
+function buildPitchMixHTML(pitches){
+  if(!pitches.length)return'';const total=pitches.length;
+  const mix=PITCHES.map((pt,i)=>({pt,n:pitches.filter(p=>p.pitchType===pt).length,col:MIX_COLORS[i]})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  return'<div class="pitch-mix-bar">'+mix.map(x=>'<span class="mix-pill" style="background:'+x.col+'18;color:'+x.col+';border:1px solid '+x.col+'38;">'+Math.round(x.n/total*100)+'% '+x.pt+'</span>').join('')+'</div>';
+}
+function buildOverallSummary(pitches){
+  if(pitches.length<10)return'';const total=pitches.length;const bullets=[];
+  const mix=PITCHES.map(pt=>({pt,n:pitches.filter(p=>p.pitchType===pt).length})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  const primary=mix[0];const secondary=mix[1];
+  if(primary){const pct=Math.round(primary.n/total*100);bullets.push('Primary pitch is the '+primary.pt+' ('+pct+'% usage)'+(secondary?' with the '+secondary.pt+' as a secondary option':'')+'. Expect it early and often.');}
+  const strikes=pitches.filter(p=>p.result==='Strike'||p.result==='Foul'||p.result==='In Play').length;
+  const sr=Math.round(strikes/total*100);
+  if(sr>=65)bullets.push('Strong strike-thrower ('+sr+'% strike rate) &mdash; be aggressive early in counts.');
+  else if(sr<50)bullets.push('Struggling to throw strikes ('+sr+'% strike rate) &mdash; work the count, make him come to you.');
+  else bullets.push('Moderate command ('+sr+'% strike rate) &mdash; stay disciplined and make him work.');
+  const hiP=pitches.filter(p=>p.zone<=2).length;const loP=pitches.filter(p=>p.zone>=6).length;
+  const outP=pitches.filter(p=>p.zone%3===2).length;const inP=pitches.filter(p=>p.zone%3===0).length;
+  if(hiP/total>0.45)bullets.push('Works the top of the zone frequently &mdash; stay back on elevated pitches.');
+  else if(loP/total>0.45)bullets.push('Likes to work down in the zone &mdash; attack pitches low in the zone.');
+  if(outP/total>0.45)bullets.push('Heavy tendency to work away &mdash; look for the pitch outer half.');
+  else if(inP/total>0.45)bullets.push('Attacks the inner half often &mdash; clear the hips early.');
+  return'<div class="overall-summary"><div class="summary-title">Overall scouting notes &mdash; '+total+' pitches</div>'+bullets.slice(0,3).map(b=>'<div class="summary-bullet">&bull; '+b+'</div>').join('')+'</div>';
+}
+function buildAnalyst(){
+  const pitches=allPitchesForPitcher(reportP);
+  if(!pitches.length){document.getElementById('analystView').innerHTML='<div class="no-data">No pitches for this pitcher.</div>';return;}
+  const cm=getCountMap(pitches);const counts=PRIORITY_COUNTS.filter(c=>cm[c]);let html='';
+  for(const count of counts){
+    const cp=cm[count];const total=cp.length;
+    html+='<div class="count-section"><div class="count-header">'+count+' count &mdash; '+total+' pitch'+(total!==1?'es':'')+'</div><div class="tend-pills">';
+    for(const pt of PITCHES){const n=cp.filter(p=>p.pitchType===pt).length;if(!n)continue;const pct=Math.round(n/total*100);const col=pct>=50?'#185FA5':pct>=30?'#854F0B':'#5F5E5A';html+='<span class="tend-pill" style="background:'+col+'18;color:'+col+';border:1px solid '+col+'38;">'+pt+' '+pct+'%</span>';}
+    html+='</div><div class="hm-wrap">';
+    for(const pt of PITCHES){const ptP=cp.filter(p=>p.pitchType===pt);if(!ptP.length)continue;const zc=Array(9).fill(0);ptP.forEach(p=>{if(p.zone!==null)zc[p.zone]++;});const mx=Math.max(...zc,1);html+='<div class="hm-block"><div class="hm-title">'+pt+'</div><div class="hm-grid">'+zc.map(c=>zoneHeatCell(c,mx)).join('')+'</div></div>';}
+    html+='</div></div>';
+  }
+  document.getElementById('analystView').innerHTML=html||'<div class="no-data">No data</div>';
+}
+function buildPlayer(){
+  const pitches=allPitchesForPitcher(reportP);
+  if(!pitches.length){document.getElementById('playerView').innerHTML='<div class="no-data">No pitches for this pitcher.</div>';return;}
+  const cm=getCountMap(pitches);const counts=PRIORITY_COUNTS.filter(c=>cm[c]);
+  let html=buildPitchMixHTML(pitches)+buildOverallSummary(pitches);
+  for(const count of counts){
+    const cp=cm[count];const total=cp.length;if(total<2)continue;
+    const lines=[];const insights=[];
+    for(const pt of PITCHES){
+      const ptP=cp.filter(p=>p.pitchType===pt);const pct=Math.round(ptP.length/total*100);if(pct<35)continue;
+      const zc=Array(9).fill(0);ptP.forEach(p=>{if(p.zone!==null)zc[p.zone]++;});
+      const topZ=zc.indexOf(Math.max(...zc));
+      lines.push(pct+'% '+pt+' &mdash; tends '+ZONE_PLAIN[topZ]);
+      const strikes=ptP.filter(p=>p.result==='Strike'||p.result==='Foul'||p.result==='In Play').length;
+      const sr=Math.round(strikes/ptP.length*100);
+      if(sr<40&&ptP.length>=3)insights.push(pt+' command is off ('+sr+'% strikes) &mdash; make him throw it');
+      else if(sr>=70&&ptP.length>=3)insights.push(pt+' is his strike-getter ('+sr+'% strikes) &mdash; be ready for it');
+    }
+    if(!lines.length){const top=PITCHES.map(pt=>({pt,n:cp.filter(p=>p.pitchType===pt).length})).sort((a,b)=>b.n-a.n)[0];if(top&&top.n)lines.push('Mixed &mdash; watch for '+top.pt);}
+    html+='<div class="scout-card"><div class="scout-count">'+count+'</div>'+lines.map(l=>'<div class="scout-line">'+l+'</div>').join('')+insights.map(l=>'<div class="scout-insight">'+l+'</div>').join('')+'<div class="scout-note">'+total+' pitch'+(total!==1?'es':'')+' tracked</div></div>';
+  }
+  document.getElementById('playerView').innerHTML=html||'<div class="no-data">Not enough data yet.</div>';
+}
+
+renderRoster();checkSavedGame();
+</script>
+</body>
+</html>
