@@ -303,6 +303,7 @@ let inningOver=false;
 let reportView='analyst';
 let reportP=0;
 let saveTimer=null;
+let undoStack=[];
 
 function saveRoster(){localStorage.setItem(ROSTER_KEY,JSON.stringify(roster));}
 function saveGame(){
@@ -362,16 +363,23 @@ function logPitch(pitchType,zone,result,inplay){
   else if(result==='Foul'&&ab.strikes<2)ab.strikes++;
 }
 
+function takeSnapshot(){
+  undoStack.push(JSON.stringify({game:JSON.parse(JSON.stringify(game)),bases:Object.assign({},bases),atBatOver,inningOver}));
+  if(undoStack.length>50)undoStack.shift();
+}
+
 function undoLastPitch(){
-  const ab=curAB();if(!ab||!ab.pitches.length)return;
-  if(atBatOver){atBatOver=false;inningOver=false;document.getElementById('bannerEnd').style.display='none';document.getElementById('bannerInning').style.display='none';}
-  ab.pitches.pop();ab.balls=0;ab.strikes=0;
-  for(const p of ab.pitches){
-    if(p.result==='Ball')ab.balls=Math.min(ab.balls+1,4);
-    else if(p.result==='Strike')ab.strikes=Math.min(ab.strikes+1,3);
-    else if(p.result==='Foul'&&ab.strikes<2)ab.strikes++;
-  }
-  entry={zone:null,pitch:null};scheduleSave();renderTrack();
+  if(!undoStack.length){alert('Nothing to undo.');return;}
+  const snapshot=JSON.parse(undoStack.pop());
+  game=snapshot.game;
+  bases=snapshot.bases;
+  atBatOver=snapshot.atBatOver;
+  inningOver=snapshot.inningOver;
+  entry={zone:null,pitch:null};
+  document.getElementById('bannerEnd').style.display=(atBatOver&&!inningOver)?'flex':'none';
+  document.getElementById('bannerInning').style.display=inningOver?'flex':'none';
+  if(!atBatOver&&!inningOver){document.getElementById('bannerEnd').style.display='none';document.getElementById('bannerInning').style.display='none';}
+  scheduleSave();renderTrack();
 }
 
 function allPitchesForPitcher(pIdx){const out=[];for(const ab of game.atBats){if(ab.pIdx===pIdx)ab.pitches.forEach(p=>out.push(Object.assign({},p)));}return out;}
@@ -554,6 +562,7 @@ function updateSteps(){
 }
 function doResult(result,inplay){
   if(entry.zone===null||entry.pitch===null)return;if(atBatOver||inningOver)return;
+  takeSnapshot();
   logPitch(entry.pitch,entry.zone,result,inplay);entry={zone:null,pitch:null};
   const bs=getBS();let msg='';let outsToAdd=0;
   if(result==='In Play'){
